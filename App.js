@@ -1,4 +1,4 @@
-import React, { useEffect, useState, createContext, useContext } from "react";
+import React, { useEffect, useState, useRef, createContext, useContext } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TextInput,
   ScrollView,
   StatusBar,
+  BackHandler,
 } from "react-native";
 import { WebView } from "react-native-webview";
 import SystemNavigationBar from "react-native-system-navigation-bar";
@@ -25,11 +26,27 @@ export const UrlContext = createContext();
 // WebViewScreen Component
 const WebViewScreen = () => {
   const { selectedUrl } = useContext(UrlContext);
+  const [canGoBack, setCanGoBack] = useState(false);
   const [error, setError] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false); 
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const webViewRef = useRef(null);
+
   useEffect(() => {
-    StatusBar.setBarStyle("dark-content"); // Set text color to black
-  }, []);
+    StatusBar.setBarStyle("dark-content");
+
+    const handleBackPress = () => {
+      if (canGoBack && webViewRef.current) {
+        webViewRef.current.goBack();
+        return true; // Prevent exiting the app
+      }
+      return false; // Default back action (exit app if no history)
+    };
+
+    BackHandler.addEventListener("hardwareBackPress", handleBackPress);
+    return () => {
+      BackHandler.removeEventListener("hardwareBackPress", handleBackPress);
+    };
+  }, [canGoBack]);
 
   const handleMessage = (event) => {
     const message = event.nativeEvent.data;
@@ -40,10 +57,9 @@ const WebViewScreen = () => {
     } else if (message === "exitFullscreen") {
       setIsFullscreen(false);
       StatusBar.setHidden(false);
-     SystemNavigationBar.navigationShow();
+      SystemNavigationBar.navigationShow();
     }
   };
-
 
   const fullscreenDetectionScript = `
     (function() {
@@ -54,7 +70,6 @@ const WebViewScreen = () => {
           window.ReactNativeWebView.postMessage('exitFullscreen');
         }
       }
-      
       document.addEventListener('fullscreenchange', handleFullscreenChange);
       document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
     })();
@@ -71,16 +86,18 @@ const WebViewScreen = () => {
         </View>
       ) : (
         <WebView
+          ref={webViewRef}
           source={{ uri: selectedUrl }}
           style={styles.webview}
           key={selectedUrl}
           onMessage={handleMessage}
           injectedJavaScript={fullscreenDetectionScript}
-          javaScriptEnabled={true}
-          domStorageEnabled={true}
-          allowsFullscreenVideo={true}
+          javaScriptEnabled
+          domStorageEnabled
+          allowsFullscreenVideo
           onError={() => setError(true)}
           onLoadEnd={() => setError(false)}
+          onNavigationStateChange={(navState) => setCanGoBack(navState.canGoBack)}
         />
       )}
     </SafeAreaView>
@@ -89,8 +106,7 @@ const WebViewScreen = () => {
 
 // SettingsScreen Component
 const SettingsScreen = () => {
-  const { setSelectedUrl, customUrls, addCustomUrl, removeCustomUrl } =
-    useContext(UrlContext);
+  const { setSelectedUrl, customUrls, addCustomUrl, removeCustomUrl } = useContext(UrlContext);
   const [customUrl, setCustomUrl] = useState("");
   const navigation = useNavigation();
 
@@ -114,22 +130,27 @@ const SettingsScreen = () => {
       url: "https://movies-react.vercel.app",
       icon: "search",
     },
+    {
+      name: "video_test",
+      url: "https://www.sample-videos.com",
+      icon: "search",
+    },
+    {
+      name: "vimeo",
+      url: "https://player.vimeo.com/video/76979871",
+      icon: "search",
+    },
+
   ];
 
   return (
-    <SafeAreaView
-      style={styles.settingsContainer}
-      edges={["top", "left", "right"]}
-    >
+    <SafeAreaView style={styles.settingsContainer}>
       <ScrollView>
         <Text style={styles.title}>Select a Website</Text>
         {predefinedSites.map((site, index) => (
           <Pressable
             key={index}
-            style={({ pressed }) => [
-              styles.button,
-              pressed && styles.buttonPressed,
-            ]}
+            style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
             onPress={() => handleUrlChange(site.url)}
           >
             <MaterialIcons name={site.icon} size={24} color="#6200ee" />
@@ -139,19 +160,13 @@ const SettingsScreen = () => {
         {customUrls.map((url, index) => (
           <View key={`custom-${index}`} style={styles.urlContainer}>
             <Pressable
-              style={({ pressed }) => [
-                styles.button,
-                pressed && styles.buttonPressed,
-              ]}
+              style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
               onPress={() => handleUrlChange(url)}
             >
               <MaterialIcons name="public" size={24} color="#6200ee" />
               <Text style={styles.buttonText}>{url}</Text>
             </Pressable>
-            <Pressable
-              style={styles.deleteButton}
-              onPress={() => removeCustomUrl(url)}
-            >
+            <Pressable style={styles.deleteButton} onPress={() => removeCustomUrl(url)}>
               <MaterialIcons name="delete" size={20} color="#ff4444" />
             </Pressable>
           </View>
@@ -178,16 +193,14 @@ const Tab = createBottomTabNavigator();
 
 // Main App Component
 export default function App() {
-  const [selectedUrl, setSelectedUrl] = useState(
-    "https://movies-react.vercel.app"
-  );
+  const [selectedUrl, setSelectedUrl] = useState("https://movies-react.vercel.app");
   const [customUrls, setCustomUrls] = useState([]);
 
   useEffect(() => {
     const loadCustomUrls = async () => {
       try {
         const savedUrls = await AsyncStorage.getItem("customUrls");
-        if (savedUrls !== null) {
+        if (savedUrls) {
           setCustomUrls(JSON.parse(savedUrls));
         }
       } catch (error) {
@@ -212,35 +225,18 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <UrlContext.Provider
-        value={{
-          selectedUrl,
-          setSelectedUrl,
-          customUrls,
-          addCustomUrl,
-          removeCustomUrl,
-        }}
-      >
+      <UrlContext.Provider value={{ selectedUrl, setSelectedUrl, customUrls, addCustomUrl, removeCustomUrl }}>
         <NavigationContainer>
           <Tab.Navigator
             screenOptions={({ route }) => ({
               tabBarIcon: ({ color, size }) => {
-                let iconName;
-                if (route.name === "WebView") {
-                  iconName = "web";
-                } else if (route.name === "Settings") {
-                  iconName = "settings";
-                }
-                return (
-                  <MaterialIcons name={iconName} size={size} color={color} />
-                );
+                let iconName = route.name === "WebView" ? "web" : "settings";
+                return <MaterialIcons name={iconName} size={size} color={color} />;
               },
               tabBarActiveTintColor: "#6200ee",
               tabBarInactiveTintColor: "gray",
               headerShown: false,
-              tabBarStyle: {
-                backgroundColor: "#f5f5f5",
-              },
+              tabBarStyle: { backgroundColor: "#f5f5f5" },
             })}
           >
             <Tab.Screen name="WebView" component={WebViewScreen} />
@@ -251,6 +247,7 @@ export default function App() {
     </SafeAreaProvider>
   );
 }
+
 
 // Styles
 const styles = StyleSheet.create({
