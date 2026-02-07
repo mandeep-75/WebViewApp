@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "Blackloop",
-    "slug": "WebViewApp",
-    "scheme": "blackloop",
+    "name": "Nexus Go",
+    "slug": "nexus-go",
+    "scheme": "nexusgo",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -10,32 +10,25 @@
     "backgroundColor": "#000000",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#000000"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.webview"
+      "bundleIdentifier": "com.mandeep.nexusgo"
     },
     "android": {
-      "package": "com.mandeep.WebViewApp",
+      "package": "com.mandeep.nexusgo",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "backgroundColor": "#000000",
+        "foregroundImage": "./assets/images/adaptive-icon.png"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/favicon.png"
-    },
-    "extra": {
-      "eas": {
-        "projectId": "d58f6edb-b817-4ac6-9ee1-62ccfe774bf4"
-      }
+      "favicon": "./assets/images/favicon.png"
     }
   }
 }
